@@ -988,7 +988,7 @@ curve_codec_metadata (curve_codec_t *self)
 
 //  @selftest
 //  For the test case, we'll put the client and server certs into the
-//  the same keystore file. This is now how it would work in real life.
+//  the same keystore file. This is not how it would work in real life.
 //
 //  The test case consists of the client sending a series of messages to
 //  the server, which the server has to echo back. The client will send
