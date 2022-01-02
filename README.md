@@ -15,6 +15,8 @@ CurveZMQ creates encrypted sessions ("connections") between two peers using shor
 
 The design of CurveZMQ stays as close as possible to the security handshake of [CurveCP](http://curvecp.org), a protocol designed to run over UDP.
 
+CurveZMQ is adapted here to be compatible with MPC for long-term keys. This avoids having to store these highly sensitive keys in configuration files, by keeping the long-term private keys securely into multiple MPC nodes. Only the key ID is returned and stored in the files.
+
 <A name="toc2-19" title="Ownership and License" />
 ## Ownership and License
 
@@ -37,17 +39,28 @@ This project needs these projects:
 * libsodium - git://github.com/jedisct1/libsodium.git
 * libzmq - git://github.com/zeromq/libzmq.git
 * libczmq - git://github.com/zeromq/czmq.git
+* ulfius - git://github.com:babelouest/ulfius.git
 
 <A name="toc2-42" title="Building and Installing" />
 ## Building and Installing
 
-This project uses autotools for packaging. To build from git you must first build libsodium, libzmq, and libczmq. The simplest way currently is to get these directly from GitHub. All example commands are for Linux:
+This project uses autotools for packaging. To build from git you must first build ulfius, libsodium, libzmq, and libczmq. 
+Notice that czmq is required to be version 3.x to be compatible with libcurve [[source]](https://github.com/zeromq/libcurve/issues/38). All example commands are for Linux:
 
+    #   ulfius
+    sudo apt install -y libmicrohttpd-dev libjansson-dev libcurl4-gnutls-dev libgnutls28-dev libgcrypt20-dev libsystemd-dev
+    wget https://github.com/babelouest/ulfius/releases/download/v2.7.6/ulfius-dev-full_2.7.6_ubuntu_focal_x86_64.tar.gz
+    tar xf ulfius-dev-full_2.7.6_ubuntu_focal_x86_64.tar.gz
+    sudo dpkg -i --force-overwrite liborcania-dev_2.2.1_ubuntu_focal_x86_64.deb
+    sudo dpkg -i --force-overwrite libyder-dev_1.4.14_ubuntu_focal_x86_64.deb
+    sudo dpkg -i libulfius-dev_2.7.6_ubuntu_focal_x86_64.deb
+   
     #   libsodium
-    git clone git://github.com/jedisct1/libsodium.git
-    cd libsodium
-    ./autogen.sh
-    ./configure && make check
+    wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.18-stable.tar.gz
+    tar xf libsodium-1.0.18-stable.tar.gz
+    cd libsodium-stable
+    ./configure
+    make && make check
     sudo make install
     sudo ldconfig
     cd ..
@@ -62,16 +75,19 @@ This project uses autotools for packaging. To build from git you must first buil
     cd ..
 
     #   CZMQ
-    git clone git://github.com/zeromq/czmq.git
-    cd czmq
-    ./autogen.sh
-    ./configure && make check
+    wget https://github.com/zeromq/czmq/releases/download/v3.0.2/czmq-3.0.2.tar.gz
+    tar xf czmq-3.0.2.tar.gz
+    cd czmq-3.0.2
+    ./configure 
+    make -j 4 CPPFLAGS='-Wno-error=deprecated-declarations'
+    make check 
     sudo make install
-    sudo ldconfig
+    ldconfig
     cd ..
 
-    git clone git://github.com/zeromq/libcurve.git
+    git clone git://github.com/duokey/libcurve.git
     cd libcurve
+    git checkout dev-mpc
     sh autogen.sh
     ./autogen.sh
     ./configure && make check
@@ -90,7 +106,16 @@ Include `curve.h` in your application and link with libcurve. Here is a typical 
 
     gcc -lcurve -lsodium -lzmq -lczmq myapp.c -o myapp
 
+To run `curve_mpc_handshake.c`, i.e., CurveZMQ handshake with MPC:
+
+    gcc -L/usr/local/lib -o curve_mpc_handshake curve_mpc_handshake.c mpc/key_manager.c mpc/helpers.c mpc/MPC_cert.c -lcurve -lsodium -lzmq -lczmq -lulfius ${CFLAGS} ${LDFLAGS}
+
+Don't forget to define your bearer token, json credentials, and vault id.
+
 <A name="toc2-94" title="Documentation" />
 ## Documentation
 
 All documentation is provided in the doc/ subdirectory.
+
+### Version
+Tested on Ubuntu version 20.04.3 LTS in WSL1.
