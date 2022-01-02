@@ -106,11 +106,13 @@ Include `curve.h` in your application and link with libcurve. Here is a typical 
 
     gcc -lcurve -lsodium -lzmq -lczmq myapp.c -o myapp
 
-To run `curve_mpc_handshake.c`, i.e., CurveZMQ handshake with MPC:
+<A name="toc2-87" title=" Running CurveZMQ handshake with MPC" />
+## Running CurveZMQ handshake with MPC
+
+First define your bearer token, json credentials, and vault id in `curve_mpc_handshake.c`.
+Then run it from `src` directory this way:
 
     gcc -L/usr/local/lib -o curve_mpc_handshake curve_mpc_handshake.c mpc/key_manager.c mpc/helpers.c mpc/MPC_cert.c -lcurve -lsodium -lzmq -lczmq -lulfius ${CFLAGS} ${LDFLAGS}
-
-Don't forget to define your bearer token, json credentials, and vault id.
 
 <A name="toc2-94" title="Documentation" />
 ## Documentation
