@@ -7,8 +7,6 @@
 #include "../include/key_manager.h"
 #include "../include/MPC_cert.h"
 
-//#define TESTDIR "/home/meret/PDM/CurveZMQ/libcurve/Files"
-
 #define TESTDIR "../certs"
 
 #define KEY_SIZE 32
@@ -24,13 +22,12 @@
 
 int main (int argc, char **argv){
 
-    //kms_hello(ACCESS_TOKEN, "Meret");
     kms_init_session(ACCESS_TOKEN, VAULT_ID, CREDENTIALS_JSON);
 
     //  Create temporary directory for test files
     zsys_dir_create (TESTDIR);
 
-     /***********   Create client certificate without MPC   ***********/
+    /***********   Create client certificate without MPC   ***********/
     puts("******** Client *********\n");
     zcert_t *client_cert = zcert_new ();
     zcert_save (client_cert, TESTDIR "/client.cert");
