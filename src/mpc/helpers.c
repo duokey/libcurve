@@ -8,6 +8,17 @@
  */
 
 /**
+ * Print an array of bytes into a decimal representation
+ */
+void print_in_bytes(byte* key, size_t size){
+    printf("[");
+    for(int i = 0; i < size; i++) {
+        printf ("%d ", key[i]);
+    }
+    printf("]\n");
+}
+
+/**
  * Concatenates two strings
  */
 char* concat(const char *s1, const char *s2)
@@ -67,7 +78,7 @@ char* print_body(struct _u_response * response){
         //char response_body[response->binary_body_length + 1];    // array of length of response size
         strncpy(response_body, response->binary_body, response->binary_body_length);
         response_body[response->binary_body_length] = '\0';
-        printf("\n%s\n\n", response_body);
+        //printf("\n%s\n\n", response_body);
 
         return response_body;
   }

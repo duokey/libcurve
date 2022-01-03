@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ulfius.h>
-#include "../../include/helpers.h" 
+#include "../../include/helpers.h"
 
 /*
 key_manager.c runs REST API calls to DuoKey-KMS.

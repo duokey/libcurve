@@ -9,6 +9,10 @@ typedef unsigned char   byte;           //  Single unsigned byte = 8 bits
   * Helper functions
  */
 
+/**
+ * Print an array of bytes into a decimal representation
+ */
+void print_in_bytes(byte* key, size_t size);
 
 /**
  * Concatenates two strings

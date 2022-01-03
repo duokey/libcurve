@@ -112,7 +112,8 @@ Include `curve.h` in your application and link with libcurve. Here is a typical 
 First define your bearer token, json credentials, and vault id in `curve_mpc_handshake.c`.
 Then run it from `src` directory this way:
 
-    gcc -L/usr/local/lib -o curve_mpc_handshake curve_mpc_handshake.c mpc/key_manager.c mpc/helpers.c mpc/MPC_cert.c -lcurve -lsodium -lzmq -lczmq -lulfius ${CFLAGS} ${LDFLAGS}
+    gcc -L/usr/local/lib -o curve_mpc_handshake curve_mpc_handshake.c mpc/key_manager.c mpc/helpers.c mpc/MPC_cert.c b64/decode.c b64/buffer.c -lcurve -lsodium -lzmq -lczmq -lulfius ${CFLAGS} ${LDFLAGS}
+
 
 <A name="toc2-94" title="Documentation" />
 ## Documentation

@@ -35,6 +35,7 @@
 #include <ulfius.h>
 #include "../curve_classes.h"
 #include "../../include/key_manager.h"
+// #include "../../include/helpers.h"        // Get rid once print_in_bytes no longer necessary
 #include "../../include/MPC_cert.h"
 #include "../../include/curve_z85.h"
 
@@ -52,11 +53,10 @@ MPC_cert_t * MPC_cert_new (char* access_token, char* vault_id, char* key_name)
 {
    byte public_key [32];
 
-   char* secret_key_id = kms_create_key(access_token, vault_id, key_name, "ECDH", 256, "Curve25519");
+   char* secret_key_id = kms_create_key(access_token, vault_id, key_name, "ECDH", 256, "Curve25519");  // ED-25519    Curve25519
    char* public_txt = kms_get_public_key(access_token, vault_id, "ECDH", key_name, secret_key_id);
    
    curve_z85_decode (public_key, public_txt);
-   printf("public_key in bytes: %s\n", public_key);
 
    return MPC_cert_new_from(public_key, secret_key_id);
 }
@@ -77,7 +77,7 @@ MPC_cert_new_from (byte *public_key, char *secret_key_id)
     assert (secret_key_id);
 
     memcpy (self->public_key, public_key, 32);
-    memcpy (self->secret_key_id, secret_key_id, 28);
+    strcpy (self->secret_key_id, secret_key_id);
 
     zmq_z85_encode (self->public_txt, self->public_key, 32);
 
@@ -222,16 +222,17 @@ MPC_cert_print (MPC_cert_t *self)
     //char secret_key_id [28];
     //memcpy (secret_key_id, self->secret_key_id, 28);
 
-    puts("===========");
+    
+    /*puts("===========");
     printf ("MPC_cert:     public-key-txt = \"%s\"\n", self->public_txt);
     printf ("MPC_cert:     public-key-bytes = \"%s\"\n", (char*)self->public_key);
-    printf("[");
-    for(int i = 0; i < 32; i++) {
-        printf ("%d ", self->public_key[i]);
-    }
-    printf("]\n");
+    //print_in_bytes(self->public_key, 32);
     printf ("MPC_cert:     secret-key-id = \"%s\"\n", self->secret_key_id);
     puts("===========");
+    */
+
+    zsys_info ("zcert:     public-key   = \"%s\"", self->public_txt);
+    zsys_info ("zcert:     secret-key-id = \"%s\"", self->secret_key_id);
 }
 
 
