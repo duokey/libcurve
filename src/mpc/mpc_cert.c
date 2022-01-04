@@ -1,18 +1,18 @@
 /*  =========================================================================
-    MPC_cert - represent a certificate for an MPC ECDH public-key pair.
+    mpc_cert - represent a certificate for an mpc ECDH public-key pair.
 
     It is adapted from CZMQ zcert certificates (http://czmq.zeromq.org).
     =========================================================================
 */
 
 /*
-    The MPC_cert class provides a way to create and work with security
+    The mpc_cert class provides a way to create and work with security
     certificates for the ZMQ CURVE mechanism. A certificate contains a
     public + secret key pair, plus metadata. It can be used as a
     temporary object in memory, or persisted to disk. On disk, a
     certificate is stored as two files. One is public and contains only
     the public key. The second is secret and contains both the public key
-    and the secret key id. The secret key itself is stored in MPC nodes
+    and the secret key id. The secret key itself is stored in mpc nodes
     and is not accessible in its entirety to anybody. The two certificates
     have the same filename, with the secret file adding "_secret".
     To exchange certificates, send the public file via some secure route.
@@ -36,10 +36,10 @@
 #include "../curve_classes.h"
 #include "../../include/key_manager.h"
 // #include "../../include/helpers.h"        // Get rid once print_in_bytes no longer necessary
-#include "../../include/MPC_cert.h"
+#include "../../include/mpc_cert.h"
 #include "../../include/curve_z85.h"
 
-struct _MPC_cert_t {
+struct _mpc_cert_t {
     byte* public_key;         //  Public key in binary
     char* secret_key_id;      //  Secret key in binary
     char* public_txt;         //  Public key in Z85 text
@@ -49,7 +49,7 @@ struct _MPC_cert_t {
 
 //  --------------------------------------------------------------------------
 //  Constructor
-MPC_cert_t * MPC_cert_new (char* access_token, char* vault_id, char* key_name)
+mpc_cert_t * mpc_cert_new (char* access_token, char* vault_id, char* key_name)
 {
    byte public_key [32];
 
@@ -58,14 +58,14 @@ MPC_cert_t * MPC_cert_new (char* access_token, char* vault_id, char* key_name)
    
    curve_z85_decode (public_key, public_txt);
 
-   return MPC_cert_new_from(public_key, secret_key_id);
+   return mpc_cert_new_from(public_key, secret_key_id);
 }
 
 //  Constructor, accepts public/secret key pair from caller
-MPC_cert_t *
-MPC_cert_new_from (byte *public_key, char *secret_key_id)
+mpc_cert_t *
+mpc_cert_new_from (byte *public_key, char *secret_key_id)
 {
-    MPC_cert_t *self = (MPC_cert_t *) malloc (sizeof (MPC_cert_t));
+    mpc_cert_t *self = (mpc_cert_t *) malloc (sizeof (mpc_cert_t));
     if (!self)
         return NULL;
 
@@ -88,11 +88,11 @@ MPC_cert_new_from (byte *public_key, char *secret_key_id)
 //  --------------------------------------------------------------------------
 //  Destructor
 void
-MPC_cert_destroy (MPC_cert_t **self_p)
+mpc_cert_destroy (mpc_cert_t **self_p)
 {
     assert (self_p);
     if (*self_p) {
-        MPC_cert_t *self = *self_p;
+        mpc_cert_t *self = *self_p;
         zconfig_destroy (&self->config);
         free(self->public_key);
         free(self->secret_key_id);
@@ -106,7 +106,7 @@ MPC_cert_destroy (MPC_cert_t **self_p)
 //  --------------------------------------------------------------------------
 //  Return public part of key pair as 32-byte binary string
 byte *
-MPC_cert_public_key (MPC_cert_t *self)
+mpc_cert_public_key (mpc_cert_t *self)
 {
     assert (self);
     return self->public_key;
@@ -116,7 +116,7 @@ MPC_cert_public_key (MPC_cert_t *self)
 //  --------------------------------------------------------------------------
 //  Return id of secret part of key pair as string
 char *
-MPC_cert_secret_key_id (MPC_cert_t *self)
+mpc_cert_secret_key_id (mpc_cert_t *self)
 {
     assert (self);
     return self->secret_key_id;
@@ -126,7 +126,7 @@ MPC_cert_secret_key_id (MPC_cert_t *self)
 //  --------------------------------------------------------------------------
 //  Return public part of key pair as Z85 armored string
 char *
-MPC_cert_public_txt (MPC_cert_t *self)
+mpc_cert_public_txt (mpc_cert_t *self)
 {
     assert (self);
     return self->public_txt;
@@ -137,7 +137,7 @@ MPC_cert_public_txt (MPC_cert_t *self)
 //  Save full certificate (public + secret) to file for persistent storage
 //  This creates one public file and one secret file (filename + "_secret").
 int
-MPC_cert_save (MPC_cert_t *self, const char *filename)
+mpc_cert_save (mpc_cert_t *self, const char *filename)
 {
     assert (self);
     assert (filename);
@@ -145,19 +145,19 @@ MPC_cert_save (MPC_cert_t *self, const char *filename)
     self->config = zconfig_new ("root", NULL);
 
     //  Save public certificate using specified filename
-    MPC_cert_save_public (self, filename);
+    mpc_cert_save_public (self, filename);
 
     //  Now save secret certificate using filename with "_secret" suffix
     char filename_secret [256];
     snprintf (filename_secret, 256, "%s_secret", filename);
-    int rc = MPC_cert_save_secret (self, filename_secret);
+    int rc = mpc_cert_save_secret (self, filename_secret);
     return rc;
 }
 
 //  --------------------------------------------------------------------------
 //  Save public certificate only to file for persistent storage.
 int
-MPC_cert_save_public (MPC_cert_t *self, const char *filename)
+mpc_cert_save_public (mpc_cert_t *self, const char *filename)
 {
     assert (self);
     assert (filename);
@@ -179,7 +179,7 @@ MPC_cert_save_public (MPC_cert_t *self, const char *filename)
 //  --------------------------------------------------------------------------
 //  Save public and secret certificates to file for persistent storage.
 int
-MPC_cert_save_secret (MPC_cert_t *self, const char *filename)
+mpc_cert_save_secret (mpc_cert_t *self, const char *filename)
 {
     assert (self);
     assert (filename);
@@ -201,7 +201,7 @@ MPC_cert_save_secret (MPC_cert_t *self, const char *filename)
 //  --------------------------------------------------------------------------
 //  Return true if two certificates have the same keys
 int
-MPC_cert_eq (MPC_cert_t *self, MPC_cert_t *compare)
+mpc_cert_eq (mpc_cert_t *self, mpc_cert_t *compare)
 {
     assert (self);
     assert (compare);
@@ -214,20 +214,20 @@ MPC_cert_eq (MPC_cert_t *self, MPC_cert_t *compare)
 //  --------------------------------------------------------------------------
 //  Print certificate contents to stdout
 void
-MPC_cert_print (MPC_cert_t *self)
+mpc_cert_print (mpc_cert_t *self)
 {
     assert (self);
-    //zsys_info ("MPC_cert: metadata");
+    //zsys_info ("mpc_cert: metadata");
 
     //char secret_key_id [28];
     //memcpy (secret_key_id, self->secret_key_id, 28);
 
     
     /*puts("===========");
-    printf ("MPC_cert:     public-key-txt = \"%s\"\n", self->public_txt);
-    printf ("MPC_cert:     public-key-bytes = \"%s\"\n", (char*)self->public_key);
+    printf ("mpc_cert:     public-key-txt = \"%s\"\n", self->public_txt);
+    printf ("mpc_cert:     public-key-bytes = \"%s\"\n", (char*)self->public_key);
     //print_in_bytes(self->public_key, 32);
-    printf ("MPC_cert:     secret-key-id = \"%s\"\n", self->secret_key_id);
+    printf ("mpc_cert:     secret-key-id = \"%s\"\n", self->secret_key_id);
     puts("===========");
     */
 
@@ -236,6 +236,6 @@ MPC_cert_print (MPC_cert_t *self)
 }
 
 
-//    MPC_zcert_set_meta (cert, "email", "ph@imatix.com");
+//    mpc_zcert_set_meta (cert, "email", "ph@imatix.com");
 
 
