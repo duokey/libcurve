@@ -1,36 +1,20 @@
 /* Compile command:          gcc -L/usr/local/lib -o curve_mpc_handshake curve_mpc_handshake.c mpc/key_manager.c mpc/helpers.c mpc/mpc_cert.c mpc/mpc_curve_codec.c b64/decode.c b64/buffer.c -lcurve -lsodium -lzmq -lczmq -lulfius ${CFLAGS} ${LDFLAGS}
 */
 
-#include <ulfius.h>
-#include "curve_classes.h"
-#include "../include/key_manager.h"
-#include "../include/mpc_cert.h"
-#include "../include/mpc_curve_codec.h"
-#include "../include/helpers.h"    // Get rid once print_in_bytes no longer necessary
-#include "../include/b64.h"
-
+// ==============================================> Rename class main?
+#include "../include/mpc_curve_library.h"
 
 #define TESTDIR "../certs"
-
 #define KEY_SIZE 32
-
-/*Enter your bearer token here:*/
-#define ACCESS_TOKEN ""
-
-/*Enter your credentials here (i.e., PWDs and URLs of nodes):*/
-#define CREDENTIALS_JSON ""
-
-/*Enter your vault id here:*/
-#define VAULT_ID ""
 
 //  Run a X25519 Key Exchange protocol from a public and secret key,
 //  Return the symmetric key derived.
 static void
 x25519_key_exchange (
-    byte *session_key,      //  session key to be returned
-    byte *public_key,       //  Public Key to encrypt to, may be null
-    char *secret_key_id,    //  Private Key id to encrypt from, may be null
-    byte *secret_key)       //  Private Key to encrypt from, may be null
+    byte *session_key,      //  Session key to be returned
+    byte *public_key,       //  Public key to encrypt to, may be null
+    byte *secret_key,       //  Private key to encrypt from, may be null
+    char *secret_key_id)    //  Private key id to encrypt from, may be null  
 {
     if(secret_key_id){
         //  If secret key id is present, run the protocol in MPC
@@ -65,6 +49,9 @@ void test(){
     mpc_cert_t *server_cert = mpc_cert_new(ACCESS_TOKEN, VAULT_ID, key_name);
     mpc_cert_print(server_cert);
     mpc_cert_save (server_cert, TESTDIR "/server.cert");
+
+    //char * txt = mpc_cert_get_public_txt(mpc_cert_public_key(server_cert));
+    //printf("In txt: %s\n", txt);
     
     
     byte session_key_1 [KEY_SIZE]; 
@@ -74,8 +61,8 @@ void test(){
     puts("\n******** MPC Key Exchange *********\n");
     x25519_key_exchange (session_key_1,
             zcert_public_txt(client_cert),           // Client public key in txt
-            mpc_cert_secret_key_id(server_cert),     // Server secret key id
-            NULL);   
+            NULL,
+            mpc_cert_secret_key_id(server_cert));     // Server secret key id 
     
     printf("Session key derived from (C, s) with MPC: \n  ");
     print_in_bytes(session_key_1, KEY_SIZE);         
@@ -84,8 +71,8 @@ void test(){
     puts("\n******** Key Exchange *********\n");
     x25519_key_exchange (session_key_2,
             mpc_cert_public_key(server_cert),        // Server Public key in bytes
-            NULL,     // Server secret key id
-            (byte *)zcert_secret_key(client_cert));  // Client Secrete key in bytes
+            (byte *)zcert_secret_key(client_cert),  // Client Secrete key in bytes
+            NULL);  
 
     
     printf("Session key derived from (c, S) without MPC: \n  ");
@@ -103,16 +90,45 @@ void test(){
 }
 
    
+void create_certs(){
+
+    /***********   Create long-term keys in MPC   ***********/
+
+    mpc_cert_t *server_cert_lt = mpc_cert_new(ACCESS_TOKEN, VAULT_ID, "server_long_term");
+    mpc_cert_save (server_cert_lt, "../certs/long-term/server.cert");
+    mpc_cert_destroy (&server_cert_lt);
+
+    mpc_cert_t *client_cert_lt = mpc_cert_new(ACCESS_TOKEN, VAULT_ID, "client_long_term");
+    mpc_cert_save (client_cert_lt, "../certs/long-term/client.cert");
+    mpc_cert_destroy (&client_cert_lt);
+
+    /***********   Create short-term keys without MPC (czmq/libsodium)   ***********/
+
+    zcert_t *server_cert_st = zcert_new ();
+    zcert_save (server_cert_st, "../certs/short-term/server.cert");
+    zcert_destroy (&server_cert_st);
+
+    zcert_t *client_cert_st = zcert_new ();
+    zcert_save (client_cert_st, "../certs/short-term/client.cert");
+    zcert_destroy (&client_cert_st);
+}    
 
 
 int main (int argc, char **argv){
 
-    kms_init_session(ACCESS_TOKEN, VAULT_ID, CREDENTIALS_JSON);
+    //kms_hello(ACCESS_TOKEN, "Meret");
+    // We do init session here for simplification. Session could also be initialized
+    // in mpc_curve_codec_new_server and mpc_curve_codec_new_client.
+    kms_init_session(ACCESS_TOKEN, VAULT_ID, CREDENTIALS_JSON);       
+    
 
     //test();
 
+    //create_certs();
+
     //curve_codec_test(true);
     
+    // Session must already be initialized to run the handshake.
     mpc_curve_codec_test (true, ACCESS_TOKEN, VAULT_ID);   
 
     return 0;
