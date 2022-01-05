@@ -24,20 +24,10 @@
     value' pairs, one per line. Values may be enclosed in quotes. The curve
     section has a 'public-key = keyvalue' and, for secret certificates, a
     'secret-key-id = keyid' line. The keyvalue is a Z85-encoded CURVE key.
-@tbd
-    Enable metadata.
 @end
 */
 
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <ulfius.h>
-#include "../curve_classes.h"
-#include "../../include/key_manager.h"
-// #include "../../include/helpers.h"        // Get rid once print_in_bytes no longer necessary
-#include "../../include/mpc_cert.h"
-#include "../../include/curve_z85.h"
+#include "../../include/mpc_curve_library.h"
 
 struct _mpc_cert_t {
     byte* public_key;         //  Public key in binary
@@ -54,8 +44,8 @@ mpc_cert_t * mpc_cert_new (char* access_token, char* vault_id, char* key_name)
 {
    byte public_key [32];
 
-   char* secret_key_id = kms_create_key(access_token, vault_id, key_name, "ECDH", 256, "Curve25519");  // ED-25519    Curve25519
-   char* public_txt = kms_get_public_key(access_token, vault_id, "ECDH", key_name, secret_key_id);
+   char* secret_key_id = kms_create_key(access_token, vault_id, key_name, "ECDH", 256, "Curve25519", false);
+   char* public_txt = kms_get_public_key(access_token, vault_id, "ECDH", key_name, secret_key_id, false);
    
    curve_z85_decode (public_key, public_txt);
 
@@ -77,6 +67,9 @@ mpc_cert_new_from (byte *public_key, char *secret_key_id)
 
     assert (public_key);
     assert (secret_key_id);
+
+    self->config = zconfig_new ("root", NULL);
+    assert(self->config);
 
     self->metadata = zhash_new ();
     if (self->metadata) {
@@ -238,8 +231,6 @@ mpc_cert_load (const char *filename)
 static void
 s_save_metadata_all (mpc_cert_t *self)
 {   
-    //zconfig_destroy (&self->config);
-    self->config = zconfig_new ("root", NULL);
     assert (self->config);
     zconfig_t *section = zconfig_new ("metadata", self->config);
 
@@ -324,7 +315,6 @@ mpc_cert_save_secret (mpc_cert_t *self, const char *filename)
 //  --------------------------------------------------------------------------
 //  Return copy of certificate; if certificate is null or we exhausted
 //  heap memory, returns null.
-
 mpc_cert_t *
 mpc_cert_dup (mpc_cert_t *self)
 {
@@ -362,25 +352,21 @@ void
 mpc_cert_print (mpc_cert_t *self)
 {
     assert (self);
-    //zsys_info ("mpc_cert: metadata");
+    zsys_info ("mpc_cert: metadata");
 
-    //char secret_key_id [28];
-    //memcpy (secret_key_id, self->secret_key_id, 28);
+    char *value = (char *) zhash_first (self->metadata);
+    while (value) {
+        zsys_info ("zcert:     %s = \"%s\"",
+                   zhash_cursor (self->metadata), value);
+        value = (char *) zhash_next (self->metadata);
+    }
 
-    
-    /*puts("===========");
-    printf ("mpc_cert:     public-key-txt = \"%s\"\n", self->public_txt);
-    printf ("mpc_cert:     public-key-bytes = \"%s\"\n", (char*)self->public_key);
-    //print_in_bytes(self->public_key, 32);
-    printf ("mpc_cert:     secret-key-id = \"%s\"\n", self->secret_key_id);
-    puts("===========");
-    */
-
+    zsys_info ("zcert: curve");
     zsys_info ("zcert:     public-key   = \"%s\"", self->public_txt);
     zsys_info ("zcert:     secret-key-id = \"%s\"", self->secret_key_id);
 }
 
 
-//    mpc_zcert_set_meta (cert, "email", "ph@imatix.com");
+
 
 

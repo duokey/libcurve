@@ -1,6 +1,6 @@
 /*  =========================================================================
-    mpc_mpc_curve_codec - core CurveZMQ engine (rfc.zeromq.org/spec:26), adapted
-                      to MPC.
+    mpc_mpc_curve_codec - core CurveZMQ engine (rfc.zeromq.org/spec:26),
+                          adapted to MPC.
 
     Copyright (c) the Contributors as noted in the AUTHORS file.
     This file is part of the Curve authentication and encryption library.
@@ -10,13 +10,6 @@
     file, You can obtain one at http://mozilla.org/MPL/2.0/.
     =========================================================================
 */
-
-//#include "../src/curve_classes.h" 
-//#include "mpc_cert.h"
-//#include "mpc_curve_library.h"
-
-//typedef struct _mpc_curve_codec_t mpc_curve_codec_t;
-//#define MPC_CURVE_CODEC_T_DEFINED
 
 //  @interface
 //  Create a new mpc_curve_codec client instance. Caller provides the
@@ -69,7 +62,7 @@ bool mpc_curve_codec_exception (mpc_curve_codec_t *self);
 zhash_t * mpc_curve_codec_metadata (mpc_curve_codec_t *self);
 
 //  Self test of this class
-void mpc_curve_codec_test (bool verbose, char* access_token, char* vault_id);
+void mpc_curve_codec_test (bool verbose);
 //  @end
 
 

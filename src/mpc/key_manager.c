@@ -1,24 +1,24 @@
-#include <stdio.h>
-#include <string.h>
-#include <ulfius.h>
-#include "../../include/helpers.h"
+/*  =========================================================================
+    key_manager - REST API functions allowing to call DuoKey-KMS
 
-/*
-key_manager.c runs REST API calls to DuoKey-KMS.
-
+   This class uses ulfius library (https://github.com/babelouest/ulfius).
+    =========================================================================
 */
 
+#include "../../include/mpc_curve_library.h"
 
 #define BASE_URL "https://vault-kms.azurewebsites.net"
 #define BEARER "bearer "
 
-//typedef unsigned char   byte;           //  Single unsigned byte = 8 bits
-
 
 /**
- * Call the kms to issue a hello to a given name, with a given token
+ * Calls the kms to issue a hello to a given name, with a given token
+ *  * Params: access_token: the bearer access token
+ *         vault_id: the vault id
+ *         credentials_json: the credentials of the user (i.e., PWDs and URLs of nodes)
+ *         verbose: if true, print the content of the response
  */
-void kms_hello(char* access_token, char* name)
+void kms_hello(char* access_token, char* name, bool verbose)
 {
     struct _u_request request;
     struct _u_response response;
@@ -35,21 +35,20 @@ void kms_hello(char* access_token, char* name)
                             U_OPT_HTTP_URL_APPEND, "/api/v1/kms/hello",
                             U_OPT_TIMEOUT, 20,
                             U_OPT_HEADER_PARAMETER, "Authorization", concat(BEARER, access_token),
+                            U_OPT_HEADER_PARAMETER, "Accept", "application/json",
                             U_OPT_URL_PARAMETER, "name", name,
                             U_OPT_NONE); // Required to close the parameters list
 
 
      /****************** Initialize the response ******************/
     ulfius_init_response(&response);
-    ulfius_set_response_properties(&response,
-                            U_OPT_HEADER_PARAMETER, "Content-Type", "application/json");
 
     /****************** Send the request ******************/
     int res = ulfius_send_http_request(&request, &response);
 
     /****************** Display the response body ******************/
     if (res == U_OK){
-        print_body(&response);
+        process_response(&response, verbose);
     } else{
         printf("Error in http request: %d\n", res);
     }
@@ -64,8 +63,9 @@ void kms_hello(char* access_token, char* name)
  * Params: access_token: the bearer access token
  *         vault_id: the vault id
  *         credentials_json: the credentials of the user (i.e., PWDs and URLs of nodes)
+ *         verbose: if true, print the content of the response
  */
-void kms_init_session(char* access_token, char* vault_id, char* credentials_json)
+void kms_init_session(char* access_token, char* vault_id, char* credentials_json, bool verbose)
 {
     struct _u_request request;
     struct _u_response response;
@@ -90,6 +90,7 @@ void kms_init_session(char* access_token, char* vault_id, char* credentials_json
                             U_OPT_HTTP_URL, BASE_URL,
                             U_OPT_HTTP_URL_APPEND, "/api/v1/kms/sys/session/init",
                             U_OPT_HEADER_PARAMETER, "Content-Type", "application/json",
+                            U_OPT_HEADER_PARAMETER, "Accept", "application/json",
                             U_OPT_TIMEOUT, 20,
                             U_OPT_HEADER_PARAMETER, "Authorization", concat(BEARER, access_token),
                             U_OPT_STRING_BODY, body,
@@ -98,15 +99,13 @@ void kms_init_session(char* access_token, char* vault_id, char* credentials_json
 
      /****************** Initialize the response ******************/
     ulfius_init_response(&response);
-    ulfius_set_response_properties(&response,
-                            U_OPT_HEADER_PARAMETER, "Content-Type", "application/json");
 
     /****************** Send the request ******************/
     int res = ulfius_send_http_request(&request, &response);
 
     /****************** Display the response body ******************/
     if (res == U_OK){
-        print_body(&response);
+        process_response(&response, verbose);
     } else{
         printf("Error in http request: %d\n", res);
     }
@@ -122,10 +121,11 @@ void kms_init_session(char* access_token, char* vault_id, char* credentials_json
  *         vault_id: the vault id
  *         key_name: the name you want to give to the key
  *         key_type: the type of the key. Supported for now: "RSA" and "ECDH"
- *         key_size: the size of the key. Supported for now: 1024 and 2048 for RSA, and 256 for ECDH         
+ *         key_size: the size of the key. Supported for now: 1024 and 2048 for RSA, and 256 for ECDH  
+ *         verbose: if true, print the content of the response       
  * Return: private key's id in string
  */
-char* kms_create_key(char* access_token, char* vault_id, char* key_name, char* key_type, int key_size, char* curve_name)
+char* kms_create_key(char* access_token, char* vault_id, char* key_name, char* key_type, int key_size, char* curve_name, bool verbose)
 {
     struct _u_request request;
     struct _u_response response;
@@ -179,6 +179,7 @@ char* kms_create_key(char* access_token, char* vault_id, char* key_name, char* k
                             U_OPT_HTTP_URL, BASE_URL,
                             U_OPT_HTTP_URL_APPEND, "/api/v1/kms/key/create_edit",
                             U_OPT_HEADER_PARAMETER, "Content-Type", "application/json",
+                            U_OPT_HEADER_PARAMETER, "Accept", "application/json",
                             U_OPT_TIMEOUT, 20,
                             U_OPT_HEADER_PARAMETER, "Authorization", concat(BEARER, access_token),
                             U_OPT_STRING_BODY, body,
@@ -187,15 +188,13 @@ char* kms_create_key(char* access_token, char* vault_id, char* key_name, char* k
 
      /****************** Initialize the response ******************/
     ulfius_init_response(&response);
-    ulfius_set_response_properties(&response,
-                            U_OPT_HEADER_PARAMETER, "Content-Type", "application/json");
 
     /****************** Send the request ******************/
     int res = ulfius_send_http_request(&request, &response);
 
     /****************** Display the response body and retrieve the private key's id ******************/
     if (res == U_OK){
-        char* body =  print_body(&response);
+        char* body =  process_response(&response, verbose);
         char* key_id = get_key_id(body);
         return key_id;
     } else{
@@ -216,9 +215,10 @@ char* kms_create_key(char* access_token, char* vault_id, char* key_name, char* k
  *         key_type: the type of the key
  *         key_name: the name of the key
  *         key_id: the id of the key      
+ *         verbose: if true, print the content of the response
  * Return: public key in z85 string format, only in case of ECDH key type
  */
-char* kms_get_public_key(char* access_token, char* vault_id, char* key_type, char* key_name, char* key_id)
+char* kms_get_public_key(char* access_token, char* vault_id, char* key_type, char* key_name, char* key_id, bool verbose)
 {
     struct _u_request request;
     struct _u_response response;
@@ -236,6 +236,7 @@ char* kms_get_public_key(char* access_token, char* vault_id, char* key_type, cha
                             U_OPT_HTTP_URL_APPEND, "/api/v1/kms/key/:keyId/get_key",
                             U_OPT_TIMEOUT, 20,
                             U_OPT_HEADER_PARAMETER, "Authorization", concat(BEARER, access_token),
+                            U_OPT_HEADER_PARAMETER, "Accept", "application/json",
                             U_OPT_URL_PARAMETER, "keyId", key_id,
                             U_OPT_URL_PARAMETER, "vaultId", vault_id,
                             U_OPT_URL_PARAMETER, "keyLabel", key_name,
@@ -243,8 +244,6 @@ char* kms_get_public_key(char* access_token, char* vault_id, char* key_type, cha
 
      /****************** Initialize the response ******************/
     ulfius_init_response(&response);
-    ulfius_set_response_properties(&response,
-                            U_OPT_HEADER_PARAMETER, "Content-Type", "application/json");
 
     /****************** Send the request ******************/
     int res = ulfius_send_http_request(&request, &response);
@@ -253,7 +252,7 @@ char* kms_get_public_key(char* access_token, char* vault_id, char* key_type, cha
     char* public_key_z85 = "";
 
     if (res == U_OK){
-        char* body = print_body(&response);
+        char* body = process_response(&response, verbose);
         
         if (strcmp(key_type, "ECDH") == 0){
             public_key_z85 = get_ecdh_public_key_z85(body, key_id); //get_ecdh_public_key_z85(&response, key_id);
@@ -273,20 +272,15 @@ char* kms_get_public_key(char* access_token, char* vault_id, char* key_type, cha
  * Params: access_token: the bearer access token
  *         vault_id: the vault id
  *         private_key_id: the id of the private key
- *         public_key_z85: the public key in z85 format     
+ *         public_key_z85: the public key in z85 format
+ *         verbose: if true, print the content of the response     
  * Return: derived symmetric session key in bytes
  */
-byte* kms_x25519(char* access_token, char* vault_id, char* private_key_id, char* public_key_z85)
+byte* kms_x25519(char* access_token, char* vault_id, char* private_key_id, char* public_key_z85, bool verbose)
 {
     struct _u_request request;
     struct _u_response response;
     char body[200];   // Large enough number for the request's body.
-
-    //char* private_key_id = "IgbPAcHuPHnIBeXHspdJuq6fKzMt";
-    //char* public_key_z85 = "vKn7>SXFSUiu&Ec13PUU-Jx/(ucf#g81iAB62X=H";
-
-    puts("In key manager:");
-
 
     /****************** Initialize the request ******************/
     ulfius_init_request(&request);
@@ -316,17 +310,13 @@ byte* kms_x25519(char* access_token, char* vault_id, char* private_key_id, char*
 
      /****************** Initialize the response ******************/
     ulfius_init_response(&response);
-    //ulfius_set_response_properties(&response,
-    //                        U_OPT_HEADER_PARAMETER, "Content-Type", "application/json");
 
     /****************** Send the request ******************/
-    puts("C");
     int res = ulfius_send_http_request(&request, &response);
 
     /****************** Display the response body and retrieve the private key's id ******************/
-    puts("D");
     if (res == U_OK){
-        char* body =  print_body(&response);
+        char* body =  process_response(&response, verbose);
         byte* session_key = get_session_key(body);
         return session_key;
     } else{
@@ -338,20 +328,4 @@ byte* kms_x25519(char* access_token, char* vault_id, char* private_key_id, char*
     ulfius_clean_response(&response);
     ulfius_clean_request(&request);
 }
-
-
-/*
-    #include <jansson.h>
-
-    json_t* json_body = json_object();
-   
-    json_object_set_new(json_body, "vauldId", json_string(vault_id));
-
-    json_t * vault_id_json = json_object_get(json_body, "vauldId");
-    if (!json_is_string(vault_id_json)){
-        fprintf(stderr, "error: sha is not a string\n");
-    } else{
-        printf("%s\n", json_string_value(vault_id_json));
-    }
-    printf("%ld\n",    json_object_size(json_body)); */
    

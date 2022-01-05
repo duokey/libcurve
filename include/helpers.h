@@ -30,14 +30,14 @@ char* concat3(const char *s1, const char *s2, const char *s3);
 char * print_map(const struct _u_map * map);
 
 /**
- * Print the body of a response and return it in string
+ * Return the body of a response in string, and display it if verbose=1
  */
-char* print_body(struct _u_response * response);
+char* process_response(struct _u_response * response, bool verbose);
 
 /**
  * Print the complete response, including the protocol, the headers and the body
  */
-void print_response(struct _u_response * response);
+void print_response(struct _u_response * response, bool verbose);
 
 /**
  * Retrieve the private key's id from the content of the response

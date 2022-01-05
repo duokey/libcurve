@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../../include/helpers.h"
+#include "../../include/mpc_curve_library.h"
 
  /*
   * Helper functions
@@ -70,15 +70,17 @@ char * print_map(const struct _u_map * map) {
 }
 
 /**
- * Print the body of a response and return it in string
+ * Return the body of a response in string, and display it if verbose=1
  */
-char* print_body(struct _u_response * response){
+char* process_response(struct _u_response * response, bool verbose){
     if (response != NULL) {
         char *response_body = malloc (sizeof (size_t) * response->binary_body_length+1);
         //char response_body[response->binary_body_length + 1];    // array of length of response size
         strncpy(response_body, response->binary_body, response->binary_body_length);
         response_body[response->binary_body_length] = '\0';
-        //printf("\n%s\n\n", response_body);
+
+        if (verbose)
+          printf("\n%s\n\n", response_body);
 
         return response_body;
   }
@@ -87,12 +89,12 @@ char* print_body(struct _u_response * response){
 /**
  * Print the complete response, including the protocol, the headers and the body
  */
-void print_response(struct _u_response * response) {
+void print_response(struct _u_response * response, bool verbose) {
   if (response != NULL) {
     char * headers = print_map(response->map_header);
     printf("protocol is\n%s\n\n  headers are \n%s\n\n",
            response->protocol, headers);
-    print_body(response);
+    process_response(response, verbose);
     free(headers);
   }
 }
