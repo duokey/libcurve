@@ -325,8 +325,9 @@ s_decrypt (
 
     //  Open box using either key pair, or precomputed key
     int rc;
-    if (key_to)
+    if (key_to){
         rc = crypto_box_open (plain, box, box_size, nonce, key_to, key_from);
+    } 
     else
         rc = crypto_box_open_afternm (plain, box, box_size, nonce, self->precomputed);
 
@@ -1045,7 +1046,7 @@ server_task (void *args)
         assert (encrypted);
         zframe_t *cleartext = curve_codec_decode (server, &encrypted);
         assert (cleartext);
-        if (memcmp (cleartext, "END", 3) == 0)
+        if (memcmp (zframe_data (cleartext), "END", 3) == 0)
             finished = true;
         //  Echo message back
         encrypted = curve_codec_encode (server, &cleartext);
