@@ -109,11 +109,16 @@ Include `curve.h` in your application and link with libcurve. Here is a typical 
 <A name="toc2-87" title=" Running CurveZMQ handshake with MPC" />
 ## Running CurveZMQ handshake with MPC
 
-First define your bearer token, json credentials, and vault id in `curve_mpc_handshake.c`.
-Then run it from `src` directory this way:
+First define your bearer token, json credentials, and vault id in `include/mpc_curve_library.h`.
+Then run `main.c` from `src` directory this way:
 
-    gcc -L/usr/local/lib -o curve_mpc_handshake curve_mpc_handshake.c mpc/key_manager.c mpc/helpers.c mpc/MPC_cert.c b64/decode.c b64/buffer.c -lcurve -lsodium -lzmq -lczmq -lulfius ${CFLAGS} ${LDFLAGS}
+    gcc -L/usr/local/lib -o main main.c mpc/key_manager.c mpc/helpers.c mpc/mpc_cert.c mpc/mpc_curve_codec.c b64/decode.c b64/buffer.c -lcurve -lsodium -lzmq -lczmq -lulfius
 
+`main.c` propose by default the following commands :
+- `kms_init_session()` : calls DuoKey-KMS to initialize a session once a new bearer token has been obtained
+- `run_X25519_key_exchange()` : runs two X25519 ECDH Key Exchanges. One in MPC from server private key id and client public key. Another, not in MPC, from server public key and client secret key. It can be noted that both keys derived are indeed the same.
+- `create_certs()`: generates the server and client long-term keys in MPC. Those are needed in the handshake which follows. Let's notice that it also generates two pairs of short-term keys without MPC.
+- `mpc_curve_codec_test()`: runs the CurveZMQ handshake adapted with MPC long-term keys
 
 <A name="toc2-94" title="Documentation" />
 ## Documentation
