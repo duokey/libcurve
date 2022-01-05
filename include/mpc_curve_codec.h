@@ -11,21 +11,22 @@
     =========================================================================
 */
 
-#include "../src/curve_classes.h" 
-#include "mpc_cert.h"
+//#include "../src/curve_classes.h" 
+//#include "mpc_cert.h"
+//#include "mpc_curve_library.h"
 
-typedef struct _mpc_curve_codec_t mpc_curve_codec_t;
-#define MPC_CURVE_CODEC_T_DEFINED
+//typedef struct _mpc_curve_codec_t mpc_curve_codec_t;
+//#define MPC_CURVE_CODEC_T_DEFINED
 
 //  @interface
 //  Create a new mpc_curve_codec client instance. Caller provides the
 //  permanent cert for the client.
-mpc_curve_codec_t * mpc_curve_codec_new_client (mpc_cert_t *cert, char *access_token, char* vault_id);
+mpc_curve_codec_t * mpc_curve_codec_new_client (mpc_cert_t *cert);
 
 //  Create a new mpc_curve_codec server instance. Caller provides the
 //  permanent cert for the server, and optionally a context used
 //  for inproc authentication of client keys over ZAP (0MQ RFC 27).
-mpc_curve_codec_t * mpc_curve_codec_new_server (mpc_cert_t *cert, char *access_token, char* vault_id, zctx_t *ctx);
+mpc_curve_codec_t * mpc_curve_codec_new_server (mpc_cert_t *cert, zctx_t *ctx);
 
 //  Destructor
 void mpc_curve_codec_destroy (mpc_curve_codec_t **self_p);

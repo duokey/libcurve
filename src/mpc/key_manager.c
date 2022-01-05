@@ -280,7 +280,13 @@ byte* kms_x25519(char* access_token, char* vault_id, char* private_key_id, char*
 {
     struct _u_request request;
     struct _u_response response;
-    char body[8096];   // Large enough number for the request's body.
+    char body[200];   // Large enough number for the request's body.
+
+    //char* private_key_id = "IgbPAcHuPHnIBeXHspdJuq6fKzMt";
+    //char* public_key_z85 = "vKn7>SXFSUiu&Ec13PUU-Jx/(ucf#g81iAB62X=H";
+
+    puts("In key manager:");
+
 
     /****************** Initialize the request ******************/
     ulfius_init_request(&request);
@@ -291,6 +297,7 @@ byte* kms_x25519(char* access_token, char* vault_id, char* private_key_id, char*
        \"vaultId\": \"%s\",             \
        \"publicKeyZ85\": \"%s\",        \
        \"alg\": \"X25519\"}", vault_id, public_key_z85); 
+
     
     // Create POST request to /key_exchange endpoint.
     // Add the authorization bearer token.
@@ -299,8 +306,8 @@ byte* kms_x25519(char* access_token, char* vault_id, char* private_key_id, char*
                             U_OPT_HTTP_VERB, "POST",
                             U_OPT_HTTP_URL, BASE_URL,
                             U_OPT_HTTP_URL_APPEND, concat3("/api/v1/kms/key/", private_key_id, "/key_exchange"),
-                            //  "/api/v1/kms/key/zKvmDN1FRGms1YDSHiVpyP4zJX9F/key_exchange",
                             U_OPT_HEADER_PARAMETER, "Content-Type", "application/json",
+                            U_OPT_HEADER_PARAMETER, "Accept", "application/json",
                             U_OPT_TIMEOUT, 20,
                             U_OPT_HEADER_PARAMETER, "Authorization", concat(BEARER, access_token),
                             U_OPT_STRING_BODY, body,
@@ -309,13 +316,15 @@ byte* kms_x25519(char* access_token, char* vault_id, char* private_key_id, char*
 
      /****************** Initialize the response ******************/
     ulfius_init_response(&response);
-    ulfius_set_response_properties(&response,
-                            U_OPT_HEADER_PARAMETER, "Content-Type", "application/json");
+    //ulfius_set_response_properties(&response,
+    //                        U_OPT_HEADER_PARAMETER, "Content-Type", "application/json");
 
     /****************** Send the request ******************/
+    puts("C");
     int res = ulfius_send_http_request(&request, &response);
 
     /****************** Display the response body and retrieve the private key's id ******************/
+    puts("D");
     if (res == U_OK){
         char* body =  print_body(&response);
         byte* session_key = get_session_key(body);
@@ -329,10 +338,6 @@ byte* kms_x25519(char* access_token, char* vault_id, char* private_key_id, char*
     ulfius_clean_response(&response);
     ulfius_clean_request(&request);
 }
-
-
-
-
 
 
 /*

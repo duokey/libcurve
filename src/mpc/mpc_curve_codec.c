@@ -145,8 +145,8 @@ mpc_curve_codec_new_client (mpc_cert_t *cert)
     self->metadata_recd = zhash_new ();
     zhash_autofree (self->metadata_recd);
     self->permacert = mpc_cert_dup (cert);      // Client's long-term key is MPC
-    self->transcert = zcert_new ();             // Client's short-term key is not MPC
-    self->transcert = 
+    //self->transcert = zcert_new ();             // Client's short-term key is not MPC
+    self->transcert = zcert_load ("../certs/short-term/client.cert");
     puts("\n******Client short-term*******\n");
     zcert_print(self->transcert);
 
@@ -285,8 +285,12 @@ s_encrypt (
     int rc;
     if (key_id_from){
         /**  If secret key id is present, run the ECDH key exchange in MPC **/
+
+        char * key_to_z85 = malloc (sizeof(char)*41);
+        zmq_z85_encode (key_to_z85, key_to, 32);
+
         // Derive symmetric key through X25519 protocol in MPC
-        byte * session_key_b64 = kms_x25519(ACCESS_TOKEN, VAULT_ID, key_id_from, key_to);
+        byte * session_key_b64 = kms_x25519(ACCESS_TOKEN, VAULT_ID, key_id_from, key_to_z85);
         char *session_key = b64_decode(session_key_b64, strlen(session_key_b64));
 
         // Return HSalsa encryption key k. HSalsa20 is an intermediate step towards XSalsa20.
@@ -301,6 +305,7 @@ s_encrypt (
         /**  Otherwise, run the ECDH key exchange without MPC **/
         // Crypto box both derive the symmetric encryption key and encrypt the box with it
         rc = crypto_box (box, plain, box_size, nonce, key_to, key_from);
+
     else
         /**  If precomputed encryption key is present, directly encrypt the box,
          *   without having to first derive the key.  **/
@@ -357,18 +362,13 @@ s_decrypt (
     if (key_id_from){
         /**  If secret key id is present, run the ECDH key exchange in MPC **/
 
-        puts("HERE");
-        printf("Private key id: %s\n", key_id_from);
-        
-
-        //char key_to_z85 [40];
         char * key_to_z85 = malloc (sizeof(char)*41);
         zmq_z85_encode (key_to_z85, key_to, 32);
-        printf("Public key z85: %s\n", key_to_z85);
 
         // Derive symmetric key through X25519 protocol in MPC
         byte *session_key_b64 = kms_x25519(ACCESS_TOKEN, VAULT_ID, key_id_from, key_to_z85);
         char *session_key = b64_decode(session_key_b64, strlen(session_key_b64));
+        print_in_bytes(session_key, 32);
 
         // Return HSalsa encryption key k. HSalsa20 is an intermediate step towards XSalsa20.
         // It is a helpful tool in the XSalsa20 security proof.
@@ -377,7 +377,7 @@ s_decrypt (
         rc = crypto_core_hsalsa20(k, zero, session_key, NULL);
 
         // Decrypt the box with key k (Authenticated Encryption)
-        rc = crypto_box_open_afternm (box, plain, box_size, nonce, k);
+        rc = crypto_box_open_afternm (plain, box, box_size, nonce, k);
     }else if (key_to)
         /**  Otherwise, run the ECDH key exchange without MPC **/
         // Crypto box both derive the symmetric encryption key and decrypt the box with it
@@ -597,7 +597,7 @@ s_produce_welcome (mpc_curve_codec_t *self)
     //  Generate client transient key as late as possible. We have not
     //  yet authenticated the client, so it may be hostile, but at least
     //  it knows the server's public key.
-    self->transcert = zcert_new ();                     // Server's short-term key is not MPC
+    self->transcert = zcert_load ("../certs/short-term/server.cert");  //zcert_new ();                     // Server's short-term key is not MPC
 
     //  Generate cookie = Box [C' + s'](t),
     memset (plain, 0, crypto_box_ZEROBYTES);
@@ -1203,14 +1203,14 @@ mpc_curve_codec_test (bool verbose, char* access_token, char* vault_id)
     mpc_cert_print(client_cert);
     //free (filename);
     */
-   mpc_cert_t *server_cert_lt = mpc_cert_load ("../certs/long-term/server.cert_secret");     // => In server task
+   mpc_cert_t *server_cert_lt = mpc_cert_load ("../certs/long-term/server.cert");     // => In server task
    mpc_cert_print(server_cert_lt);
-   mpc_cert_t *client_cert_lt = mpc_cert_load ("../certs/long-term/client.cert_secret");
+   mpc_cert_t *client_cert_lt = mpc_cert_load ("../certs/long-term/client.cert");
    mpc_cert_print(client_cert_lt);
 
-   zcert_t *server_cert_st = zcert_load ("../certs/short-term/server.cert_secret");
+   zcert_t *server_cert_st = zcert_load ("../certs/short-term/server.cert");
    zcert_print(server_cert_st);
-   zcert_t *client_cert_st = zcert_load ("../certs/short-term/client.cert_secret");
+   zcert_t *client_cert_st = zcert_load ("../certs/short-term/client.cert");
    zcert_print(client_cert_st);
 
    byte session_key_1 [32]; // Purple key in MPC in server
@@ -1281,7 +1281,7 @@ mpc_curve_codec_test (bool verbose, char* access_token, char* vault_id)
         assert (input);
         output = mpc_curve_codec_execute (client, &input);
     }
-    /*
+    
     //  Handshake is done, now try Hello, World
     zframe_t *cleartext = zframe_new ((byte *) "Hello, World", 12);
     zframe_t *encrypted = mpc_curve_codec_encode (client, &cleartext);
@@ -1362,18 +1362,18 @@ mpc_curve_codec_test (bool verbose, char* access_token, char* vault_id)
     assert (cleartext);
     zframe_destroy (&cleartext);
 
-    mpc_cert_destroy (&server_cert);
-    mpc_cert_destroy (&client_cert);
+    mpc_cert_destroy (&server_cert_lt);
+    mpc_cert_destroy (&client_cert_lt);
     mpc_curve_codec_destroy (&client);
 
     //  Some invalid operations to test exception handling
-    server_cert = mpc_cert_new (access_token, vault_id, "invalid_key");
-    input = zframe_new (mpc_cert_public_key (server_cert), 32);
-    mpc_curve_codec_t *server = mpc_curve_codec_new_server (server_cert, access_token, vault_id, ctx);
+    server_cert_lt = mpc_cert_new (access_token, vault_id, "invalid_key");
+    input = zframe_new (mpc_cert_public_key (server_cert_lt), 32);
+    mpc_curve_codec_t *server = mpc_curve_codec_new_server (server_cert_lt, ctx);
     mpc_curve_codec_execute (server, &input);        // Client should produce HELLO, not server
     assert (mpc_curve_codec_exception (server));
     mpc_curve_codec_destroy (&server);
-    mpc_cert_destroy (&server_cert);
+    mpc_cert_destroy (&server_cert_lt);
 
     zctx_destroy (&ctx);
     
@@ -1386,5 +1386,5 @@ mpc_curve_codec_test (bool verbose, char* access_token, char* vault_id)
     //  Ensure server thread has exited before we do
     zclock_sleep (100);
     printf ("OK\n");
-    */
+    
 }

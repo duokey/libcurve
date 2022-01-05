@@ -5,10 +5,12 @@
     =========================================================================
 */
 
-#include <ulfius.h>
+//#include "mpc_curve_library.h"
 
-typedef struct _mpc_cert_t mpc_cert_t;
-#define mpc_CERT_T_DEFINED
+//#include <ulfius.h>
+
+//typedef struct _mpc_cert_t mpc_cert_t;
+//#define mpc_CERT_T_DEFINED
 
 //  Constructor
 mpc_cert_t * mpc_cert_new (char* access_token, char* vault_id, char* key_name);
