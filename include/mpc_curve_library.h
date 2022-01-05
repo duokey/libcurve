@@ -1,6 +1,8 @@
 /*  =========================================================================
     mpc_curve_library - contains all the include needed for CurveZMQ with MPC
+    =========================================================================
 */
+
 // Set up parameters to call DuoKey-KMS
 /*Enter your bearer token here:*/
 #define ACCESS_TOKEN ""
@@ -14,6 +16,7 @@
 //  External dependencies
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 #include <assert.h>
 #include <ulfius.h>
 
