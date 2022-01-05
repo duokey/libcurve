@@ -146,8 +146,7 @@ mpc_curve_codec_new_client (mpc_cert_t *cert)
     zhash_autofree (self->metadata_recd);
     self->permacert = mpc_cert_dup (cert);      // Client's long-term key is MPC
     self->transcert = zcert_new ();             // Client's short-term key is not MPC
-    //self->transcert = zcert_load ("../certs/short-term/client.cert");
-    puts("\n******Client short-term*******\n");
+    puts("Client short-term cert: \n");
     zcert_print(self->transcert);
 
     return self;
@@ -191,7 +190,7 @@ mpc_curve_codec_destroy (mpc_curve_codec_t **self_p)
     assert (self_p);
     if (*self_p) {
         mpc_curve_codec_t *self = *self_p;
-        mpc_cert_destroy (&self->permacert);
+        //mpc_cert_destroy (&self->permacert);
         zcert_destroy (&self->transcert);
         zhash_destroy (&self->metadata_sent);
         zhash_destroy (&self->metadata_recd);
@@ -290,7 +289,7 @@ s_encrypt (
         zmq_z85_encode (key_to_z85, key_to, 32);
 
         // Derive symmetric key through X25519 protocol in MPC
-        byte * session_key_b64 = kms_x25519(ACCESS_TOKEN, VAULT_ID, key_id_from, key_to_z85);
+        byte * session_key_b64 = kms_x25519(ACCESS_TOKEN, VAULT_ID, key_id_from, key_to_z85, false);
         char *session_key = b64_decode(session_key_b64, strlen(session_key_b64));
 
         // Return HSalsa encryption key k. HSalsa20 is an intermediate step towards XSalsa20.
@@ -366,9 +365,8 @@ s_decrypt (
         zmq_z85_encode (key_to_z85, key_to, 32);
 
         // Derive symmetric key through X25519 protocol in MPC
-        byte *session_key_b64 = kms_x25519(ACCESS_TOKEN, VAULT_ID, key_id_from, key_to_z85);
+        byte *session_key_b64 = kms_x25519(ACCESS_TOKEN, VAULT_ID, key_id_from, key_to_z85, false);
         char *session_key = b64_decode(session_key_b64, strlen(session_key_b64));
-        print_in_bytes(session_key, 32);
 
         // Return HSalsa encryption key k. HSalsa20 is an intermediate step towards XSalsa20.
         // It is a helpful tool in the XSalsa20 security proof.
@@ -555,8 +553,7 @@ s_produce_hello (mpc_curve_codec_t *self)
                self->peer_permakey,                          //  Server long-term public key
                (byte *)zcert_secret_key (self->transcert),   //  Client short-term secret key
                NULL);
-
-    puts("Hello sent");           
+         
     return command;
 }
 
@@ -564,7 +561,6 @@ s_produce_hello (mpc_curve_codec_t *self)
 static int
 s_process_hello (mpc_curve_codec_t *self, zframe_t *input)
 {
-    puts("Process hello");
     hello_t *hello = (hello_t *) zframe_data (input);
     memcpy (self->peer_transkey, hello->client, 32);          // Server receives the client's short-term public key
 
@@ -579,7 +575,6 @@ s_process_hello (mpc_curve_codec_t *self, zframe_t *input)
         NULL,
         mpc_cert_secret_key_id (self->permacert));           //  Server long-term secret key id
 
-    puts("Hello received"); 
     return rc;
 }
 
@@ -630,8 +625,7 @@ s_produce_welcome (mpc_curve_codec_t *self)
                self->peer_transkey,
                NULL,
                mpc_cert_secret_key_id (self->permacert));      //  Server long-term secret key id            
-
-    puts("Welcome sent"); 
+ 
     return command;
 }
 
@@ -654,7 +648,7 @@ s_process_welcome (mpc_curve_codec_t *self, zframe_t *input)
         memcpy (self->peer_transkey, plain, 32);
         memcpy (self->cookie, plain + 32, 96);
     }
-    puts("Welcome received");
+
     return rc;
 }
 
@@ -707,7 +701,6 @@ s_produce_initiate (mpc_curve_codec_t *self)
     free (plain);
     free (box);
 
-    puts("Initiate sent");
     return command;
 }
 
@@ -751,10 +744,11 @@ s_process_initiate (mpc_curve_codec_t *self, zframe_t *input)
             initiate->nonce,
             plain, 128 + metadata_size,
             "CurveZMQINITIATE",
-            NULL, NULL, NULL);                              // Use pre-computed session key
+            NULL, NULL, NULL);                              // Use pre-computed session key      
 
     if (rc == 0) {
         memcpy (self->peer_permakey, plain, 32);
+        printf("\nClient long-term cert received by server: %s\n", self->peer_permakey);  
         if (s_authenticate_peer (self))
             rc = -1;            //  Authentication failed
     }
@@ -780,7 +774,7 @@ s_process_initiate (mpc_curve_codec_t *self, zframe_t *input)
     }
     free (plain);
     free (box);
-    puts("Initiate received");
+
     return rc;
 }
 
@@ -798,7 +792,6 @@ s_produce_ready (mpc_curve_codec_t *self)
                "CurveZMQREADY---",
                NULL, NULL, NULL);                           // Use pre-computed session key
     
-    puts("Ready sent");
     return command;
 }
 
@@ -819,7 +812,7 @@ s_process_ready (mpc_curve_codec_t *self, zframe_t *input)
     //  Metadata comprises entire box
     s_decode_metadata (self, plain, size);
     free (plain);
-    puts("Ready received");
+
     return rc;
 }
 
@@ -841,7 +834,6 @@ s_produce_message (mpc_curve_codec_t *self, zframe_t *clear)
                NULL, NULL, NULL);                         // Use pre-computed session key
     free (clear_data);
 
-    puts("Message sent");
     return command;
 }
 
@@ -864,9 +856,10 @@ s_process_message (mpc_curve_codec_t *self, zframe_t *input)
         zframe_set_more (clear, clear_data [0]);
     }
     free (clear_data);
-    puts("Message received");
+ 
     return clear;
 }
+
 
 
 //  Detect command type of frame
@@ -908,6 +901,7 @@ s_command (mpc_curve_codec_t *self, zframe_t *input)
     }
     return no_command;
 }
+
 
 
 static zframe_t *
@@ -1092,7 +1086,7 @@ server_task (void *args)
     int rc = zsocket_bind (router, "tcp://127.0.0.1:9004");
     assert (rc != -1);
 
-    mpc_cert_t *cert = mpc_cert_load ("../certs/long-term/server.cert_secret"); //mpc_cert_load (TESTDIR "/server.cert");
+    mpc_cert_t *cert = mpc_cert_load ("../certs/long-term/server.cert_secret");
     assert (cert);
     mpc_curve_codec_t *server = mpc_curve_codec_new_server (cert, ctx);
     assert (server);
@@ -1125,8 +1119,9 @@ server_task (void *args)
         assert (encrypted);
         zframe_t *cleartext = mpc_curve_codec_decode (server, &encrypted);
         assert (cleartext);
-        if (memcmp (cleartext, "END", 3) == 0)
+        if (memcmp (zframe_data (cleartext), "END", 3) == 0){
             finished = true;
+        }
         //  Echo message back
         encrypted = mpc_curve_codec_encode (server, &cleartext);
         assert (encrypted);
@@ -1141,27 +1136,9 @@ server_task (void *args)
 }
 //  @end
 
-static void
-x25519_key_exchange (
-    byte *session_key,      //  Session key to be returned
-    byte *public_key,       //  Public key to encrypt to, may be null
-    byte *secret_key,       //  Private key to encrypt from, may be null
-    char *secret_key_id)    //  Private key id to encrypt from, may be null  
-{
-    if(secret_key_id){
-        //  If secret key id is present, run the protocol in MPC
-        byte * session_key_b64 = kms_x25519(ACCESS_TOKEN, VAULT_ID, secret_key_id, public_key);
-        byte* session_key_bytes = b64_decode(session_key_b64, strlen(session_key_b64));
-        strcpy (session_key, session_key_bytes);
-    }else{
-         //  Otherwise, run the protocol from libsodium with secret key
-        int res = crypto_scalarmult_curve25519(session_key, secret_key, public_key);
-    }
-}
-
 
 void
-mpc_curve_codec_test (bool verbose, char* access_token, char* vault_id)
+mpc_curve_codec_test (bool verbose)
 {
     printf (" * mpc_curve_codec: ");
 
@@ -1171,11 +1148,6 @@ mpc_curve_codec_test (bool verbose, char* access_token, char* vault_id)
     assert (sizeof (initiate_t) == 257);
     assert (sizeof (ready_t) == 30);
     assert (sizeof (message_t) == 32);
-
-    //  @selftest
-    //  Create temporary directory for test files
-    
-    zsys_dir_create (TESTDIR);
     
     zctx_t *ctx = zctx_new ();
     assert (ctx);
@@ -1183,85 +1155,22 @@ mpc_curve_codec_test (bool verbose, char* access_token, char* vault_id)
     int rc = zsocket_connect (dealer, "tcp://127.0.0.1:9004");
     assert (rc != -1);
 
-    //  We'll create two long-term new certificates and save the client 
-    //  public certificate on disk; in a real case we'd transfer this
-    //  securely from the client machine to the server machine.            
-    // =================================================> Use load to have benchmarks!
-    /*
-    char * server_lt_key_name = "server_long_term";
-    mpc_cert_t *server_cert = mpc_cert_new (access_token, vault_id, server_lt_key_name);
-    mpc_cert_save (server_cert, TESTDIR "/server.cert");
-    puts("\n******** Server long-term *********\n");
-    mpc_cert_print(server_cert);
-
-    char * client_lt_key_name = "client_long_term";
-    mpc_cert_t *client_cert = mpc_cert_new (access_token, vault_id, client_lt_key_name);
-    //char *filename = (char *) malloc (strlen (TESTDIR) + 21);
-    
-    //sprintf (filename, TESTDIR "/client-%07d.cert", randof (10000000));
-    mpc_cert_save_public (client_cert, TESTDIR "/client.cert_secret");
-    puts("\n******** Client long-term *********\n");
-    mpc_cert_print(client_cert);
-    //free (filename);
-    */
-   mpc_cert_t *server_cert_lt = mpc_cert_load ("../certs/long-term/server.cert");     // => In server task
-   mpc_cert_print(server_cert_lt);
-   mpc_cert_t *client_cert_lt = mpc_cert_load ("../certs/long-term/client.cert");
-   mpc_cert_print(client_cert_lt);
-
-   zcert_t *server_cert_st = zcert_load ("../certs/short-term/server.cert");
-   zcert_print(server_cert_st);
-   zcert_t *client_cert_st = zcert_load ("../certs/short-term/client.cert");
-   zcert_print(client_cert_st);
-
-   byte session_key_1 [32]; // Purple key in MPC in server
-   byte session_key_2 [32]; // Purple key in client
-   byte session_key_3 [32]; 
-   byte session_key_4 [32];
-
-    // ========================================
-    x25519_key_exchange (session_key_1,
-            zcert_public_txt(client_cert_st),           // Client public key in txt
-            NULL,
-            mpc_cert_secret_key_id(server_cert_lt));     // Server secret key id 
-    
-    printf("Purple key in MPC in server: \n  ");
-    print_in_bytes(session_key_1, 32);         
-
-    // ========================================
-    x25519_key_exchange (session_key_2,
-            mpc_cert_public_key(server_cert_lt),        // Server Public key in bytes
-            (byte *)zcert_secret_key(client_cert_st),  // Client Secrete key in bytes
-            NULL);     
-    printf("\nPurple key in client: \n  ");
-    print_in_bytes(session_key_2, 32);   
-
-    // ========================================
-     x25519_key_exchange (session_key_3,
-            zcert_public_txt(server_cert_st),           // Client public key in txt
-            NULL,
-            mpc_cert_secret_key_id(client_cert_lt));     // Server secret key id 
-    
-    printf("Vouch key in MPC in client: \n  ");
-    print_in_bytes(session_key_3, 32);         
-
-    // ========================================
-    x25519_key_exchange (session_key_4,
-            mpc_cert_public_key(client_cert_lt),        // Server Public key in bytes
-            (byte *)zcert_secret_key(server_cert_st),  // Client Secrete key in bytes
-            NULL);    
-    printf("\nVouch key in server: \n  ");
-    print_in_bytes(session_key_4, 32);   
 
 
-
+    //  We'll load the long-term certificates and save the client public 
+    //  certificate on disk; in a real case we'd transfer this securely
+    //  from the client machine to the server machine.
+    mpc_cert_t *server_cert = mpc_cert_load ("../certs/long-term/server.cert");
+    assert(server_cert);
+    mpc_cert_t *client_cert = mpc_cert_load ("../certs/long-term/client.cert");
+    assert(client_cert);
     
     //  We'll run the server as a background task, and the
     //  client in this foreground thread.
     zthread_new (server_task, &verbose);
 
     //  Create a new client instance
-    mpc_curve_codec_t *client = mpc_curve_codec_new_client (client_cert_lt);
+    mpc_curve_codec_t *client = mpc_curve_codec_new_client (client_cert);
     assert (client);
     mpc_curve_codec_set_verbose (client, verbose);
 
@@ -1271,7 +1180,7 @@ mpc_curve_codec_test (bool verbose, char* access_token, char* vault_id)
 
     //  Kick off client handshake
     //  First frame to new client is server's public key
-    zframe_t *input = zframe_new (mpc_cert_public_key (server_cert_lt), 32);  // Client receives server's long-term public key
+    zframe_t *input = zframe_new (mpc_cert_public_key (server_cert), 32);  // Client receives server's long-term public key
     zframe_t *output = mpc_curve_codec_execute (client, &input);           // Client produces HELLO box (+ sends his short-term public key)
 
     while (!mpc_curve_codec_connected (client)) {
@@ -1283,11 +1192,29 @@ mpc_curve_codec_test (bool verbose, char* access_token, char* vault_id)
         output = mpc_curve_codec_execute (client, &input);
     }
     
+    //  Handshake is done, now signal the end to server.
+    zframe_t *cleartext = zframe_new ((byte *) "END", 3);
+    zframe_t *encrypted = mpc_curve_codec_encode (client, &cleartext);
+    assert (encrypted);
+    zframe_send (&encrypted, dealer, 0);
+
+    encrypted = zframe_recv (dealer);
+    assert (encrypted);
+    cleartext = mpc_curve_codec_decode (client, &encrypted);
+    assert (cleartext);
+    assert (zframe_size (cleartext) == 3);
+    assert (memcmp (zframe_data (cleartext), "END", 3) == 0);
+    zframe_destroy (&cleartext);
+    
+
+    /** Multiple tests sending data, but MPC is not needed anymore**/
+    /*
     //  Handshake is done, now try Hello, World
     zframe_t *cleartext = zframe_new ((byte *) "Hello, World", 12);
     zframe_t *encrypted = mpc_curve_codec_encode (client, &cleartext);
     assert (encrypted);
     zframe_send (&encrypted, dealer, 0);
+    
 
     encrypted = zframe_recv (dealer);
     assert (encrypted);
@@ -1363,26 +1290,20 @@ mpc_curve_codec_test (bool verbose, char* access_token, char* vault_id)
     assert (cleartext);
     zframe_destroy (&cleartext);
 
-    mpc_cert_destroy (&server_cert_lt);
-    mpc_cert_destroy (&client_cert_lt);
-    mpc_curve_codec_destroy (&client);
-
     //  Some invalid operations to test exception handling
-    server_cert_lt = mpc_cert_new (access_token, vault_id, "invalid_key");
-    input = zframe_new (mpc_cert_public_key (server_cert_lt), 32);
-    mpc_curve_codec_t *server = mpc_curve_codec_new_server (server_cert_lt, ctx);
+    server_cert = mpc_cert_new (access_token, vault_id, "invalid_key");
+    input = zframe_new (mpc_cert_public_key (server_cert), 32);
+    mpc_curve_codec_t *server = mpc_curve_codec_new_server (server_cert, ctx);
     mpc_curve_codec_execute (server, &input);        // Client should produce HELLO, not server
     assert (mpc_curve_codec_exception (server));
     mpc_curve_codec_destroy (&server);
-    mpc_cert_destroy (&server_cert_lt);
+    mpc_cert_destroy (&server_cert);
+    */
+    
+    
+    mpc_curve_codec_destroy (&client);
 
     zctx_destroy (&ctx);
-    
-    //  Delete all test files
-    zdir_t *dir = zdir_new (TESTDIR, NULL);
-    //zdir_remove (dir, true);
-    zdir_destroy (&dir);
-    //  @end
 
     //  Ensure server thread has exited before we do
     zclock_sleep (100);
