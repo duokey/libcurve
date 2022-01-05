@@ -145,8 +145,8 @@ mpc_curve_codec_new_client (mpc_cert_t *cert)
     self->metadata_recd = zhash_new ();
     zhash_autofree (self->metadata_recd);
     self->permacert = mpc_cert_dup (cert);      // Client's long-term key is MPC
-    //self->transcert = zcert_new ();             // Client's short-term key is not MPC
-    self->transcert = zcert_load ("../certs/short-term/client.cert");
+    self->transcert = zcert_new ();             // Client's short-term key is not MPC
+    //self->transcert = zcert_load ("../certs/short-term/client.cert");
     puts("\n******Client short-term*******\n");
     zcert_print(self->transcert);
 
@@ -597,7 +597,8 @@ s_produce_welcome (mpc_curve_codec_t *self)
     //  Generate client transient key as late as possible. We have not
     //  yet authenticated the client, so it may be hostile, but at least
     //  it knows the server's public key.
-    self->transcert = zcert_load ("../certs/short-term/server.cert");  //zcert_new ();                     // Server's short-term key is not MPC
+    //self->transcert = zcert_load ("../certs/short-term/server.cert");  //zcert_new ();                     // Server's short-term key is not MPC
+    self->transcert = zcert_new ();                     // Server's short-term key is not MPC
 
     //  Generate cookie = Box [C' + s'](t),
     memset (plain, 0, crypto_box_ZEROBYTES);
