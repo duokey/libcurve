@@ -582,7 +582,6 @@ s_produce_welcome (mpc_curve_codec_t *self)
     //  Generate client transient key as late as possible. We have not
     //  yet authenticated the client, so it may be hostile, but at least
     //  it knows the server's public key.
-    //self->transcert = zcert_load ("../certs/short-term/server.cert");  //zcert_new ();                     // Server's short-term key is not MPC
     self->transcert = zcert_new ();                     // Server's short-term key is not MPC
 
     //  Generate cookie = Box [C' + s'](t),
