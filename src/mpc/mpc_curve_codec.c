@@ -32,6 +32,8 @@
 #   error "libsodium not built correctly"
 #endif
 
+#define TESTDIR_LONG "../certs/long-term"
+
 typedef enum {
     send_hello,                 //  C: sends HELLO to server
     expect_hello,               //  S: accepts HELLO from client
@@ -43,7 +45,6 @@ typedef enum {
 } state_t;
 
 //  For parsing incoming commands
-
 typedef enum {
     no_command,
     hello_command,
@@ -52,13 +53,6 @@ typedef enum {
     ready_command,
     message_command
 } command_t;
-
-//  To make calls to DuoKey-KMS
-/*
-struct _mpc_params_t {
-   char * access_token;
-   char * vault_id;            
-};*/
 
 //  Structure of our class
 struct _mpc_curve_codec_t {
@@ -146,8 +140,6 @@ mpc_curve_codec_new_client (mpc_cert_t *cert)
     zhash_autofree (self->metadata_recd);
     self->permacert = mpc_cert_dup (cert);      // Client's long-term key is MPC
     self->transcert = zcert_new ();             // Client's short-term key is not MPC
-    puts("Client short-term cert: \n");
-    zcert_print(self->transcert);
 
     return self;
 }
@@ -284,7 +276,6 @@ s_encrypt (
     int rc;
     if (key_id_from){
         /**  If secret key id is present, run the ECDH key exchange in MPC **/
-
         char * key_to_z85 = malloc (sizeof(char)*41);
         zmq_z85_encode (key_to_z85, key_to, 32);
 
@@ -360,7 +351,6 @@ s_decrypt (
     int rc;
     if (key_id_from){
         /**  If secret key id is present, run the ECDH key exchange in MPC **/
-
         char * key_to_z85 = malloc (sizeof(char)*41);
         zmq_z85_encode (key_to_z85, key_to, 32);
 
@@ -748,7 +738,6 @@ s_process_initiate (mpc_curve_codec_t *self, zframe_t *input)
 
     if (rc == 0) {
         memcpy (self->peer_permakey, plain, 32);
-        printf("\nClient long-term cert received by server: %s\n", self->peer_permakey);  
         if (s_authenticate_peer (self))
             rc = -1;            //  Authentication failed
     }
@@ -871,7 +860,7 @@ s_command (mpc_curve_codec_t *self, zframe_t *input)
         byte *data = zframe_data (input);
         if (size == sizeof (hello_t) && memcmp (data, "\x05HELLO", 6) == 0) {
             if (self->verbose)
-                puts ("Received C:HELLO");
+                puts ("\nReceived C:HELLO");
            return hello_command;
         }
         else
@@ -1069,8 +1058,6 @@ mpc_curve_codec_metadata (mpc_curve_codec_t *self)
 //  both single and multipart messages. A message "END" signals the end
 //  of the test.
 
-#define TESTDIR "../certs"
-
 static void *
 server_task (void *args)
 {
@@ -1080,13 +1067,13 @@ server_task (void *args)
     zauth_t *auth = zauth_new (ctx);
     assert (auth);
     zauth_set_verbose (auth, verbose);
-    zauth_configure_curve (auth, "*", TESTDIR);
+    zauth_configure_curve (auth, "*", TESTDIR_LONG);
 
     void *router = zsocket_new (ctx, ZMQ_ROUTER);
     int rc = zsocket_bind (router, "tcp://127.0.0.1:9004");
     assert (rc != -1);
 
-    mpc_cert_t *cert = mpc_cert_load ("../certs/long-term/server.cert_secret");
+    mpc_cert_t *cert = mpc_cert_load (TESTDIR_LONG "/server.cert");
     assert (cert);
     mpc_curve_codec_t *server = mpc_curve_codec_new_server (cert, ctx);
     assert (server);
@@ -1140,7 +1127,8 @@ server_task (void *args)
 void
 mpc_curve_codec_test (bool verbose)
 {
-    printf (" * mpc_curve_codec: ");
+    puts("\n*************** HANDSHAKE *****************\n");
+    printf ("\n * mpc_curve_codec: ");
 
     //  Check compiler isn't padding our structures mysteriously
     assert (sizeof (hello_t) == 200);
@@ -1160,9 +1148,9 @@ mpc_curve_codec_test (bool verbose)
     //  We'll load the long-term certificates and save the client public 
     //  certificate on disk; in a real case we'd transfer this securely
     //  from the client machine to the server machine.
-    mpc_cert_t *server_cert = mpc_cert_load ("../certs/long-term/server.cert");
+    mpc_cert_t *server_cert = mpc_cert_load (TESTDIR_LONG "/server.cert");
     assert(server_cert);
-    mpc_cert_t *client_cert = mpc_cert_load ("../certs/long-term/client.cert");
+    mpc_cert_t *client_cert = mpc_cert_load (TESTDIR_LONG "/client.cert");
     assert(client_cert);
     
     //  We'll run the server as a background task, and the
@@ -1205,9 +1193,20 @@ mpc_curve_codec_test (bool verbose)
     assert (zframe_size (cleartext) == 3);
     assert (memcmp (zframe_data (cleartext), "END", 3) == 0);
     zframe_destroy (&cleartext);
+
+    mpc_curve_codec_destroy (&client);
+    zctx_destroy (&ctx);
+
+    //  Ensure server thread has exited before we do
+    zclock_sleep (100);
+    printf ("OK\n");
     
 
-    /** Multiple tests sending data, but MPC is not needed anymore**/
+    /** Multiple tests sending data, but MPC is not needed anymore.
+     *  If you want to test them, they must be placed after the end
+     *  of the "while(!mpc_curve_codec_connected (client))" loop,
+     *  which runs the handshake.
+     * **/
     /*
     //  Handshake is done, now try Hello, World
     zframe_t *cleartext = zframe_new ((byte *) "Hello, World", 12);
@@ -1298,9 +1297,7 @@ mpc_curve_codec_test (bool verbose)
     assert (mpc_curve_codec_exception (server));
     mpc_curve_codec_destroy (&server);
     mpc_cert_destroy (&server_cert);
-    */
-    
-    
+
     mpc_curve_codec_destroy (&client);
 
     zctx_destroy (&ctx);
@@ -1308,5 +1305,6 @@ mpc_curve_codec_test (bool verbose)
     //  Ensure server thread has exited before we do
     zclock_sleep (100);
     printf ("OK\n");
+    */
     
 }
