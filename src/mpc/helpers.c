@@ -117,6 +117,7 @@ char *strremove(char *str, const char *sub) {
 
 /**
  * Retrieve the private key's id from the content of the response
+ * TBD: retireving the value of "keyId" is now hardcoded, it should be automated with json (e.g., jansson library)
  */
 char* get_key_id(char * response_body) {
   if (response_body != ""){
@@ -131,20 +132,20 @@ char* get_key_id(char * response_body) {
 
 /**
  * Retrieve the ECDH public key in z86 format from the content of the response
+ * TBD: retireving the value of "publicKeyZ85" is now hardcoded, it should be automated with json (e.g., jansson library)
  */
 char* get_ecdh_public_key_z85(char* response_body, char* key_id) {
    if (response_body != "") {
-
         char* public_key_z85 = strremove(response_body, concat3("{\"kty\":\"ECDH\", \"n\":\"\", \"e\":0, \"alg\":\"X25519\", \"kid\":\"", key_id, "\", \"publicKeyZ85\":\""));
-        public_key_z85 = strremove(public_key_z85, "\"}");
+        public_key_z85 = strremove(public_key_z85, "\", \"publicSignKey\":\"\", \"curveName\":\"\"}");
 
         return public_key_z85;
   }
 }
 
-
 /**
  * Retrieve the derived session key from the content of the response
+ * TBD: retireving the value of "sessionKey" is now hardcoded, it should be automated with json (e.g., jansson library)
  */
 byte* get_session_key(char * response_body) {
    if (response_body != "") {
