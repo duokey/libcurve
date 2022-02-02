@@ -125,5 +125,8 @@ Then run `main.c` from `src` directory this way:
 
 All documentation is provided in the doc/ subdirectory.
 
+### To be done
+The extraction of `keyId`, `sessionKey`, and `publicKeyZ85` are hard-coded in `helpers.c` at the moment. This should be automated in the future.
+
 ### Version
 Tested on Ubuntu version 20.04.3 LTS in WSL1.
